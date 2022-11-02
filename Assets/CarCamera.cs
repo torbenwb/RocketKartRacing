@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class CarCamera : MonoBehaviour
 {
-    public CarController carController;
+   public CarController carController;
     public Transform carTransform;
     public Transform ballTransform;
     public bool followBall = true;
@@ -13,23 +13,6 @@ public class CarCamera : MonoBehaviour
     public float moveSpeed = 10f;
     public float minRotationDelta = 60f;
     public float maxDistance = 2f;
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (!carController) return;
-        float target = 90f;
-        if (carController.SpeedRatio > 1.5f) target = 105f;
-        else target = 90f;
-
-        Camera.main.fieldOfView = Mathf.MoveTowards(Camera.main.fieldOfView,target, carController.SpeedRatio * 10f * Time.deltaTime);
-    }
 
     private void FixedUpdate()
     {
