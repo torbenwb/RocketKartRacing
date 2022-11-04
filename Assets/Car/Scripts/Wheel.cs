@@ -1,23 +1,40 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using TMPro;
+
 
 public class Wheel : MonoBehaviour
 {
     Rigidbody rigidbody;
-    public float wheelRadius = 0.5f;
+    
+    private bool grounded = false;
+    public bool Grounded{get => grounded;}
+
+    [Header("Wheel Raycast Settings")]
+    public float wheelRadius = 0.4f;
     public float raycastAngle = 60f;
     public int increments = 6;
+
+    [Header("Suspension")]
     public float maxOffset = 2f;
     public float springStrength = 100f;
     public float springDamping = 2f;
-    public float wheelRotation = 0f;
+
+    [Header("Wheel Rotation")]
+    private float wheelRotation = 0f;
     public float wheelRotationSpeed = 360f;
-    [Range(0f, 1f)]
-    public float friction = 0f;
-    public float wheelTorque = 0f;
+    Vector3 lastHit, newHit;
+
+    [Header("Wheel Torque")]
     public float maxTorque = 10f;
+    private float wheelTorque = 0f;
+
+    [Header("Braking")]
+    public float brakePressure = 1f;
+
+    [Header("Friction")]
+    public float friction = 1f;
+    public float xAxisVelocity;
+    public float zAxisVelocity;
+    public Vector3 frictionOutput;
 
     private void Awake()
     {
@@ -29,28 +46,36 @@ public class Wheel : MonoBehaviour
     {
         float offset = WheelRaycasts(true);
         transform.GetChild(0).transform.localPosition = Vector3.up * offset;
+        SpinWheel();
 
         if (offset == 0f) return;
         float maxDelta = maxTorque * Time.fixedDeltaTime;
         wheelTorque = Mathf.MoveTowards(wheelTorque, maxTorque * Input.GetAxisRaw("Vertical"), maxDelta);
+        brakePressure = (Input.GetAxisRaw("Vertical") == 0f) ? 1f : 0f;
+        
         rigidbody.AddForceAtPosition(Suspension(offset),transform.position);
         rigidbody.AddForceAtPosition(WheelForce(), transform.position);
         rigidbody.AddForceAtPosition(FrictionForce(), transform.position);
-
         SpinWheel();
+        
     }
 
     private Vector3 FrictionForce(){
+
         Vector3 pointVelocity = rigidbody.GetPointVelocity(transform.position);
-        float xAxisVelocity = Vector3.Dot(pointVelocity, transform.right);
-        float zAxisVelocity = Vector3.Dot(pointVelocity, transform.forward);
-        Vector3 frictionOutput = (transform.right * - xAxisVelocity * friction) + (transform.forward * -zAxisVelocity * friction);
+        float forwardVelocity = Vector3.Dot(transform.forward, pointVelocity);
+        float rightVelocity = Vector3.Dot(transform.right, pointVelocity);
+        // If braking apply opposite force proportional to z axis velocity
+        Vector3 zAxisFriction = transform.forward * -forwardVelocity * friction * brakePressure;
+        // Apply oppositional x axis force proportional x axis velocity and friction
+        Vector3 xAxisFriction = transform.right * -rightVelocity * friction;
 
-        if (maxTorque == 0f){
-            wheelTorque = zAxisVelocity;
-        }
+        Vector3 frictionOutput = xAxisFriction + zAxisFriction;
 
-        return frictionOutput;
+        Debug.DrawLine(transform.position, transform.position + zAxisFriction, Color.blue);
+        Debug.DrawLine(transform.position, transform.position + xAxisFriction, Color.red);
+
+        return (frictionOutput);
     }
 
     private Vector3 WheelForce(){
@@ -59,13 +84,26 @@ public class Wheel : MonoBehaviour
     }
 
     private void SpinWheel(){
-        wheelRotation += wheelRotationSpeed * Time.fixedDeltaTime * wheelTorque;
+        Vector3 hitDistance = newHit - lastHit;
+        float zAxisDistance = Vector3.Dot(hitDistance, transform.forward);
+        float distanceTraveled = zAxisDistance;
+
+        if (distanceTraveled == 0f) return;
+
+        float wheelCircumference = 3.14f * wheelRadius * 2f;
+        float a = Mathf.Abs(distanceTraveled) / wheelCircumference;
+
+        float circumferenceRatio = a;
+
+        
+        if (zAxisDistance > 0f) wheelRotation += circumferenceRatio * 360f;
+        else wheelRotation -= circumferenceRatio * 360f;
+        
         if (wheelRotation > 360f) wheelRotation -= 360f;
         if (wheelRotation < -360f) wheelRotation += 360f;
-        Vector3 origin = transform.position;
-        Vector3 direction = Quaternion.AngleAxis(wheelRotation, transform.right) * transform.up;
-        Debug.DrawLine(origin, origin + direction.normalized * wheelRadius, Color.red);
         transform.GetChild(0).transform.localRotation = Quaternion.AngleAxis(wheelRotation, Vector3.right);
+
+        lastHit = newHit;
     }
 
     private Vector3 Suspension(float offset){
@@ -94,6 +132,7 @@ public class Wheel : MonoBehaviour
         the ground. An offset greater than 0 means wheel is touching the ground.
     */
     private float WheelRaycasts(bool drawDebug = false){
+
         float offset = 0f;
         // Origin point for all raycasts
         Vector3 origin = transform.position;
@@ -112,6 +151,8 @@ public class Wheel : MonoBehaviour
             RaycastHit hit;
             if (Physics.Raycast(origin, direction, out hit, wheelRadius)){
                 if (drawDebug) Debug.DrawLine(origin, hit.point, Color.red);
+                
+                if (direction == -transform.up) newHit = hit.point;
 
                 float distance = (hit.point - end).magnitude;
                 // If distance from end is greater than offset override offset
@@ -126,6 +167,7 @@ public class Wheel : MonoBehaviour
 
         if (offset != 0f && drawDebug) Debug.DrawLine(transform.position, transform.position + transform.up * offset, Color.blue);
 
+        grounded = offset != 0f;
         return offset;
     }   
 }
