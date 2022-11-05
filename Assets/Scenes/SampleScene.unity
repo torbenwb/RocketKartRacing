@@ -356,6 +356,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 14cdbd52a9751a349a4734bd3902d751, type: 3}
+--- !u!1 &101044040 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1250060024103395145, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+  m_PrefabInstance: {fileID: 1250060024076705764}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &115773947 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 4794376892973456909, guid: 14cdbd52a9751a349a4734bd3902d751, type: 3}
@@ -385,6 +390,45 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1250060024103395146, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
   m_PrefabInstance: {fileID: 1250060024076705764}
   m_PrefabAsset: {fileID: 0}
+--- !u!54 &127615152 stripped
+Rigidbody:
+  m_CorrespondingSourceObject: {fileID: 1250060024103395147, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+  m_PrefabInstance: {fileID: 1250060024076705764}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &127615153
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 101044040}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e9100ae46ca6ec46a0d282463a5a2cb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  centerOfMass: {fileID: 706117919}
+  frontWheels:
+  - {fileID: 1788276904}
+  - {fileID: 936726747}
+  backWheels:
+  - {fileID: 400022393}
+  - {fileID: 147029495}
+  rb: {fileID: 127615152}
+  maxSteeringAngle: 35
+  steeringSpeed: 2
+  raycastScanAngle: 90
+  raycastAmount: 10
+  friction: 10
+  maxOffset: 1
+  springStrength: 200
+  springDamping: 10
+  jumpForce: 20
+  maxTorque: 100
+  brakeStrength: 1
+  drawWheelGroundRaycasts: 1
+  drawFrictionVectors: 1
+  drawGroundedIndicator: 1
 --- !u!1 &145476567
 GameObject:
   m_ObjectHideFlags: 0
@@ -651,6 +695,11 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!4 &706117919 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 1250060024232141161, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+  m_PrefabInstance: {fileID: 1250060024076705764}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &748124804
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -852,6 +901,7 @@ GameObject:
   - component: {fileID: 963194227}
   - component: {fileID: 963194226}
   - component: {fileID: 963194229}
+  - component: {fileID: 963194230}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -937,7 +987,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be475707d124be44b9eb9992df9b5ca1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  carController: {fileID: 0}
   carTransform: {fileID: 127615150}
   ballTransform: {fileID: 1962207974}
   followBall: 0
@@ -946,6 +995,18 @@ MonoBehaviour:
   moveSpeed: 10
   minRotationDelta: 60
   maxDistance: 2
+--- !u!114 &963194230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 963194225}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5dfc3117da9b1d41bd2f28fad1dffe4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1001 &1380937857
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1806,6 +1867,10 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1250060024103395145, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: m_TagString
+      value: Car
+      objectReference: {fileID: 0}
     - target: {fileID: 1250060024103395146, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: m_RootOrder
       value: 3
@@ -1849,6 +1914,18 @@ PrefabInstance:
     - target: {fileID: 1250060024103395146, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024103395147, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: m_Drag
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024103395147, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: m_Mass
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024103395147, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: m_CollisionDetection
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1250060024103395156, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: steeringAngle
@@ -1935,6 +2012,14 @@ PrefabInstance:
       value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1250060024223457811, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawFrictionVectors
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024223457811, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawWheelGroundRaycasts
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024223457811, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: frictionCurve.m_Curve.Array.size
       value: 2
       objectReference: {fileID: 0}
@@ -2247,6 +2332,14 @@ PrefabInstance:
       value: 20
       objectReference: {fileID: 0}
     - target: {fileID: 1250060024375788701, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawFrictionVectors
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024375788701, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawWheelGroundRaycasts
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024375788701, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: frictionCurve.m_Curve.Array.size
       value: 2
       objectReference: {fileID: 0}
@@ -2563,6 +2656,14 @@ PrefabInstance:
       value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 1250060024912760639, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawFrictionVectors
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024912760639, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawWheelGroundRaycasts
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060024912760639, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: frictionCurve.m_Curve.Array.size
       value: 2
       objectReference: {fileID: 0}
@@ -2879,6 +2980,14 @@ PrefabInstance:
       value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 1250060025797603148, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawFrictionVectors
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060025797603148, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
+      propertyPath: drawWheelGroundRaycasts
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1250060025797603148, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
       propertyPath: frictionCurve.m_Curve.Array.size
       value: 2
       objectReference: {fileID: 0}
@@ -3162,7 +3271,8 @@ PrefabInstance:
       propertyPath: zAxisFrictionCurve.m_Curve.Array.data[3].tangentMode
       value: 136
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 1250060024103395156, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
   m_SourcePrefab: {fileID: 100100000, guid: 265db5873fc89cf41b07326d9110dd3d, type: 3}
 --- !u!1001 &4059183748340169102
 PrefabInstance:
