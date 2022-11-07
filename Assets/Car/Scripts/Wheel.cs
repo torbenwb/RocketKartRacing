@@ -1,173 +1,127 @@
 using UnityEngine;
 
-
 public class Wheel : MonoBehaviour
 {
-    Rigidbody rigidbody;
-    
-    private bool grounded = false;
-    public bool Grounded{get => grounded;}
+  private bool grounded = false;
+  private Transform wheelMesh;
+  private float wheelRadius;
+  private float wheelCircumference;
+  private float wheelRotation = 0f;
+  private float wheelTorque = 0f;
+  private Vector3 lastHit, newHit;
+  public bool isGrounded { get => grounded; }
+  private Car car;
 
-    [Header("Wheel Raycast Settings")]
-    public float wheelRadius = 0.4f;
-    public float raycastAngle = 60f;
-    public int increments = 6;
+  private void Awake()
+  {
+    car = GetComponentInParent<Car>();
+    wheelMesh = transform.GetChild(0).transform;
+    wheelRadius = wheelMesh.GetComponent<MeshFilter>().mesh.bounds.extents.y;
+    wheelCircumference = 3.14f * wheelRadius * 2f;
+  }
 
-    [Header("Suspension")]
-    public float maxOffset = 2f;
-    public float springStrength = 100f;
-    public float springDamping = 2f;
+  public Vector3 CalculateNetWheelForces(float acceleration, float brake)
+  {
+    float wheelToGroundDistance = CalculateWheelToGroundDistance();
+    float maxRotationChange = car.maxTorque * Time.fixedDeltaTime;
+    wheelMesh.localPosition = Vector3.up * wheelToGroundDistance;
+    wheelTorque = Mathf.MoveTowards(wheelTorque, car.maxTorque * acceleration, maxRotationChange);
+    if (!grounded) return Vector3.zero;
+    return (
+      CalculateSuspensionForce(wheelToGroundDistance) +
+      CalculateForceFromWheelTorque(brake) +
+      CalculateFrictionForce()
+    );
+  }
 
-    [Header("Wheel Rotation")]
-    private float wheelRotation = 0f;
-    public float wheelRotationSpeed = 360f;
-    Vector3 lastHit, newHit;
+  /*  Find wheel vertical offset from ground using a downward arc of raycasts.
+     returns:
+     - wheelToGroundDistance - The distance between the wheel's transform position based on
+     wheel radius and the position of the ground. An offset of 0 means wheel is not touching
+     the ground. An offset greater than 0 means wheel is touching the ground.
+ */
+  private float CalculateWheelToGroundDistance()
+  {
+    float wheelToGroundDistance = 0f;
+    float angleIncrement = car.raycastScanAngle / car.raycastAmount;
+    grounded = false;
 
-    [Header("Wheel Torque")]
-    public float maxTorque = 10f;
-    private float wheelTorque = 0f;
+    // Prepare to emit a series of raycasts from the center of the wheel. 
+    Vector3 scanOrigin = transform.position;
+    Vector3 scanDirection = Quaternion.AngleAxis((-car.raycastScanAngle / 2), transform.right) * -transform.up;
 
-    [Header("Braking")]
-    public float brakePressure = 1f;
-
-    [Header("Friction")]
-    public float friction = 1f;
-    public float xAxisVelocity;
-    public float zAxisVelocity;
-    public Vector3 frictionOutput;
-
-    private void Awake()
+    // Loop through each raycast and use the one with the greatest hitDistance.
+    for (int i = 0; i <= car.raycastAmount; i++)
     {
-        rigidbody = GetComponentInParent<Rigidbody>();
-        
+      Vector3 end = scanOrigin + scanDirection * wheelRadius;
+      RaycastHit hit;
+      bool didHit = Physics.Raycast(scanOrigin, scanDirection, out hit, wheelRadius);
+      if (didHit)
+      {
+        float hitDistance = (hit.point - end).magnitude;
+        if (hitDistance > wheelToGroundDistance) wheelToGroundDistance = hitDistance;
+        if (i == car.raycastAmount / 2) newHit = hit.point;
+        grounded = true;
+      }
+      if (car.drawWheelGroundRaycasts) Debug.DrawLine(scanOrigin, didHit ? hit.point : end, didHit ? Color.red : Color.green);
+      scanDirection = Quaternion.AngleAxis(angleIncrement, transform.right) * scanDirection;
     }
+    return wheelToGroundDistance;
+  }
 
-    private void FixedUpdate()
-    {
-        float offset = WheelRaycasts(true);
-        transform.GetChild(0).transform.localPosition = Vector3.up * offset;
-        SpinWheel();
+  private Vector3 CalculateFrictionForce()
+  {
+    Vector3 wheelPointVelocity = car.rb.GetPointVelocity(transform.position);
 
-        if (offset == 0f) return;
-        float maxDelta = maxTorque * Time.fixedDeltaTime;
-        wheelTorque = Mathf.MoveTowards(wheelTorque, maxTorque * Input.GetAxisRaw("Vertical"), maxDelta);
-        brakePressure = (Input.GetAxisRaw("Vertical") == 0f) ? 1f : 0f;
-        
-        rigidbody.AddForceAtPosition(Suspension(offset),transform.position);
-        rigidbody.AddForceAtPosition(WheelForce(), transform.position);
-        rigidbody.AddForceAtPosition(FrictionForce(), transform.position);
-        SpinWheel();
-        
-    }
+    // If braking apply opposite force proportional to z axis velocity
+    float zSpeed = Vector3.Dot(transform.forward, wheelPointVelocity);
+    Vector3 zAxisFriction = transform.forward * -zSpeed * car.friction;
+    if (car.drawFrictionVectors) Debug.DrawLine(transform.position, transform.position + zAxisFriction, Color.blue);
 
-    private Vector3 FrictionForce(){
+    // Apply oppositional x axis force, proportional x axis velocity, and friction
+    float xSpeed = Vector3.Dot(transform.right, wheelPointVelocity);
+    Vector3 xAxisFriction = transform.right * -xSpeed * car.friction;
+    if (car.drawFrictionVectors) Debug.DrawLine(transform.position, transform.position + xAxisFriction, Color.red);
 
-        Vector3 pointVelocity = rigidbody.GetPointVelocity(transform.position);
-        float forwardVelocity = Vector3.Dot(transform.forward, pointVelocity);
-        float rightVelocity = Vector3.Dot(transform.right, pointVelocity);
-        // If braking apply opposite force proportional to z axis velocity
-        Vector3 zAxisFriction = transform.forward * -forwardVelocity * friction * brakePressure;
-        // Apply oppositional x axis force proportional x axis velocity and friction
-        Vector3 xAxisFriction = transform.right * -rightVelocity * friction;
+    // Combine friction vectors
+    Vector3 netFriction = xAxisFriction + zAxisFriction;
 
-        Vector3 frictionOutput = xAxisFriction + zAxisFriction;
+    return netFriction;
+  }
 
-        Debug.DrawLine(transform.position, transform.position + zAxisFriction, Color.blue);
-        Debug.DrawLine(transform.position, transform.position + xAxisFriction, Color.red);
+  private Vector3 CalculateForceFromWheelTorque(float brake)
+  {
+    return transform.forward * (wheelTorque - car.brakeStrength * brake);
+  }
 
-        return (frictionOutput);
-    }
+  private Vector3 CalculateSuspensionForce(float wheelToGroundDistance)
+  {
+    float offsetRatio = wheelToGroundDistance / car.maxOffset;
 
-    private Vector3 WheelForce(){
-        Vector3 direction = transform.forward;
-        return direction * wheelTorque * friction;
-    }
+    // World space direction to apply force in
+    Vector3 springDirection = transform.up;
 
-    private void SpinWheel(){
-        Vector3 hitDistance = newHit - lastHit;
-        float zAxisDistance = Vector3.Dot(hitDistance, transform.forward);
-        float distanceTraveled = zAxisDistance;
+    // Get velocity of parent's rigidbody at center of wheel
+    Vector3 wheelWorldVelocity = car.rb.GetPointVelocity(transform.position);
 
-        if (distanceTraveled == 0f) return;
+    // Speed in spring direction
+    float springSpeed = Vector3.Dot(transform.up, wheelWorldVelocity);
 
-        float wheelCircumference = 3.14f * wheelRadius * 2f;
-        float a = Mathf.Abs(distanceTraveled) / wheelCircumference;
+    // Force magnitude to apply to rigidbody (strength) - (damping)
+    float springMagnitude = (car.springStrength * offsetRatio) - (springSpeed * car.springDamping);
 
-        float circumferenceRatio = a;
+    return springDirection * springMagnitude;
+  }
 
-        
-        if (zAxisDistance > 0f) wheelRotation += circumferenceRatio * 360f;
-        else wheelRotation -= circumferenceRatio * 360f;
-        
-        if (wheelRotation > 360f) wheelRotation -= 360f;
-        if (wheelRotation < -360f) wheelRotation += 360f;
-        transform.GetChild(0).transform.localRotation = Quaternion.AngleAxis(wheelRotation, Vector3.right);
 
-        lastHit = newHit;
-    }
 
-    private Vector3 Suspension(float offset){
-        // Wheels are not on the ground -> no suspension force
-        if (offset == 0f) return Vector3.zero;
-
-        float offsetRatio = offset / maxOffset;
-        
-        // World space direction to apply force in
-        Vector3 springDirection = transform.up;
-        // Velocity of parent's rigidbody at center of wheel
-        Vector3 wheelWorldVelocity = rigidbody.GetPointVelocity(transform.position);
-        // Magnitude velocity in spring direction
-        float springVelocity = Vector3.Dot(springDirection, wheelWorldVelocity);
-        // How much force to apply to rigidbody
-        float springForce = springStrength * offsetRatio;
-        springForce -= springVelocity * springDamping;
-        return springDirection * springForce;
-    }
-
-    /*  Find wheel vertical offset from ground using a downward arc of raycasts.
-
-        returns:
-        - offset - The vertical offset from the wheel's transform position based on
-        wheel radius and ground position. An offset of 0 means wheel is not touching
-        the ground. An offset greater than 0 means wheel is touching the ground.
-    */
-    private float WheelRaycasts(bool drawDebug = false){
-
-        float offset = 0f;
-        // Origin point for all raycasts
-        Vector3 origin = transform.position;
-
-        // Starting raycast direction - rotated on the transform x axis
-        // half the total raycast angles.
-        Vector3 direction = Quaternion.AngleAxis((-raycastAngle / 2), transform.right) * -transform.up;
-        
-        // degrees to rotate direction each increment
-        float angleIncrement = raycastAngle / increments;
-
-        for (int i = 0; i <= increments; i++){
-            // Where ray would end if no hit
-            Vector3 end = origin + direction * wheelRadius;
-
-            RaycastHit hit;
-            if (Physics.Raycast(origin, direction, out hit, wheelRadius)){
-                if (drawDebug) Debug.DrawLine(origin, hit.point, Color.red);
-                
-                if (direction == -transform.up) newHit = hit.point;
-
-                float distance = (hit.point - end).magnitude;
-                // If distance from end is greater than offset override offset
-                if (distance > offset) offset = distance;
-            }
-            else{
-                if (drawDebug) Debug.DrawLine(origin, origin + direction * wheelRadius, Color.green);
-            }
-
-            direction = Quaternion.AngleAxis(angleIncrement, transform.right) * direction;
-        }
-
-        if (offset != 0f && drawDebug) Debug.DrawLine(transform.position, transform.position + transform.up * offset, Color.blue);
-
-        grounded = offset != 0f;
-        return offset;
-    }   
+  public void SpinMesh()
+  {
+    // TODO: Wheels should retain spin when in mid-air.
+    float distanceTraveled = Vector3.Dot(newHit - lastHit, transform.forward);
+    wheelRotation += (distanceTraveled / wheelCircumference) * 360f;
+    if (Mathf.Abs(wheelRotation) >= 360f) wheelRotation = Mathf.RoundToInt(wheelRotation) % 90;
+    wheelMesh.localRotation = Quaternion.AngleAxis(wheelRotation, Vector3.right);
+    lastHit = newHit;
+  }
 }
