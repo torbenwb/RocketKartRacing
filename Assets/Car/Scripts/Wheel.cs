@@ -20,12 +20,13 @@ public class Wheel : MonoBehaviour
 
     [Header("Wheel Rotation")]
     private float wheelRotation = 0f;
-    public float wheelRotationSpeed = 360f;
+    private float wheelRotationVelocity = 0f;
     Vector3 lastHit, newHit;
 
     [Header("Wheel Torque")]
     public float maxTorque = 10f;
     private float wheelTorque = 0f;
+    public float topSpeed = 20f;
 
     [Header("Braking")]
     public float brakePressure = 1f;
@@ -46,7 +47,8 @@ public class Wheel : MonoBehaviour
     {
         float offset = WheelRaycasts(true);
         transform.GetChild(0).transform.localPosition = Vector3.up * offset;
-        SpinWheel();
+
+        if (brakePressure == 0f) SpinWheel(offset > 0f);
 
         if (offset == 0f) return;
         float maxDelta = maxTorque * Time.fixedDeltaTime;
@@ -56,7 +58,7 @@ public class Wheel : MonoBehaviour
         rigidbody.AddForceAtPosition(Suspension(offset),transform.position);
         rigidbody.AddForceAtPosition(WheelForce(), transform.position);
         rigidbody.AddForceAtPosition(FrictionForce(), transform.position);
-        SpinWheel();
+        
         
     }
 
@@ -79,25 +81,29 @@ public class Wheel : MonoBehaviour
     }
 
     private Vector3 WheelForce(){
-        Vector3 direction = transform.forward;
-        return direction * wheelTorque * friction;
+        float carForwardSpeed = Vector3.Dot(rigidbody.transform.forward, rigidbody.velocity);
+        float carSpeedRatio = 1f - (Mathf.Abs(carForwardSpeed) / topSpeed);
+        return transform.forward * carSpeedRatio * wheelTorque * friction;
     }
 
-    private void SpinWheel(){
-        Vector3 hitDistance = newHit - lastHit;
-        float zAxisDistance = Vector3.Dot(hitDistance, transform.forward);
-        float distanceTraveled = zAxisDistance;
+    private void SpinWheel(bool tireGrounded){
+        if (tireGrounded){
+            Vector3 hitDistance = newHit - lastHit;
+            float zAxisDistance = Vector3.Dot(hitDistance, transform.forward);
+            float distanceTraveled = zAxisDistance;
 
-        if (distanceTraveled == 0f) return;
+            if (distanceTraveled == 0f) return;
 
-        float wheelCircumference = 3.14f * wheelRadius * 2f;
-        float a = Mathf.Abs(distanceTraveled) / wheelCircumference;
+            float wheelCircumference = 3.14f * wheelRadius * 2f;
+            float a = Mathf.Abs(distanceTraveled) / wheelCircumference;
 
-        float circumferenceRatio = a;
+            float circumferenceRatio = a;
 
-        
-        if (zAxisDistance > 0f) wheelRotation += circumferenceRatio * 360f;
-        else wheelRotation -= circumferenceRatio * 360f;
+            if (zAxisDistance > 0f) wheelRotationVelocity = circumferenceRatio * 360f;
+            else wheelRotationVelocity = -circumferenceRatio * 360f;
+        }
+    
+        wheelRotation += wheelRotationVelocity;
         
         if (wheelRotation > 360f) wheelRotation -= 360f;
         if (wheelRotation < -360f) wheelRotation += 360f;
