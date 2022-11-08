@@ -1,116 +1,110 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
 
-public class Car : MonoBehaviour
-{
-  [Header("Reference")]
-  [SerializeField] Transform centerOfMass;
-  [SerializeField] Wheel[] frontWheels;
-  [SerializeField] Wheel[] backWheels;
-  private List<Wheel> wheels;
-  [HideInInspector] public Rigidbody rb;
+[System.Serializable]
+public struct AxleInfo {
+    [SerializeField] public WheelCollider leftWheel;
+    [SerializeField] public WheelCollider rightWheel;
+    [SerializeField] public bool motor;
+    [SerializeField] public bool steering;
+}
+     
+public class Car : MonoBehaviour {
+    [SerializeField]  List<AxleInfo> axleInfos; 
+    [SerializeField]  float maxMotorTorque;
+    [SerializeField]  float maxSteeringAngle;
+    [SerializeField]  float maxBrakeTorque;
 
-  [Header("Steering")]
-  [SerializeField] float maxSteeringAngle = 35f;
-  [SerializeField] float steeringSpeed = 2f;
-  Quaternion targetRotation = Quaternion.identity;
+    private float accelerationAxis = 0f;
+    private float brakeAxis = 0f;
+    private float turnAxis = 0f;
 
-  [Header("Wheels")]
-  public float raycastScanAngle = 60f;
-  public int raycastAmount = 6;
-  public float friction = 1f;
-  private bool isGrounded = false;
+    // Public Interface
 
-  [Header("Suspension")]
-  public float maxOffset = 2f;
-  public float springStrength = 100f;
-  public float springDamping = 2f;
-  public float jumpForce = 20f;
+    /*  The Drive method allows a user to apply
+        drive the car either forward or backward.
 
-  [Header("Torque")]
-  public float maxTorque = 10f;
-  private float acceleration = 0f;
+        directionAxis will be clamped between -1 and 1.
 
-  [Header("Braking")]
-  public float brakeStrength = 1f;
-  private float brake = 0f;
+        A positive value for directionAxis results 
+        forward acceleration.
 
-  [Header("Debugging")]
-  public bool drawWheelGroundRaycasts = true;
-  public bool drawFrictionVectors = true;
-  public bool drawGroundedIndicator = true;
-
-  void Awake()
-  {
-    rb = GetComponent<Rigidbody>();
-    if (centerOfMass) rb.centerOfMass = centerOfMass.localPosition;
-    wheels = new List<Wheel>();
-    foreach (Wheel wheel in frontWheels)
-    {
-      wheels.Add(wheel);
+        A negative value for directionAxis results 
+        in backwards acceleration.
+    */
+    public void Drive(float accelerationAxis){
+        this.accelerationAxis = Mathf.Clamp(accelerationAxis, -1f, 1f);
     }
-    foreach (Wheel wheel in backWheels)
-    {
-      wheels.Add(wheel);
+
+    /*  The Brake method allows the user to apply
+        braking force, opposing the current movement
+        of the car.
+
+        brakeAxis will be clamped between 0 and 1.
+
+        Brake pressure will be proportional to brakeAxis
+        input.
+    */
+    public void Brake(float brakeAxis){
+        this.brakeAxis = Mathf.Clamp(brakeAxis, 0f, 1f);
     }
-  }
 
-  void FixedUpdate()
-  {
-    isGrounded = false;
-    foreach (Wheel frontWheel in frontWheels)
-    {
-      // Apply steering
-      Transform t = frontWheel.transform;
-      t.localRotation = Quaternion.RotateTowards(t.localRotation, targetRotation, steeringSpeed * maxSteeringAngle * Time.fixedDeltaTime);
+    /*  The Turn method allows the user to apply
+        steering input to the front wheels of the car.
+
+        A turnAxis value of less than one will rotate
+        the car's front wheels to the left.
+
+        A turnAxis value of greater than one will rotate
+        the car's front wheels to the right.
+
+        A turnAxis value of 0 will center the rotation
+        of the car's front wheels.
+    */
+    public void Turn(float turnAxis){
+        this.turnAxis = Mathf.Clamp(turnAxis, -1f, 1f);
     }
-    foreach (Wheel wheel in wheels)
+     
+    // finds the corresponding visual wheel
+    // correctly applies the transform
+    private void ApplyLocalPositionToVisuals(WheelCollider collider)
     {
-      // Apply wheel forces
-      Vector3 forceVector = wheel.CalculateNetWheelForces(acceleration, brake);
-      rb.AddForceAtPosition(forceVector, wheel.transform.position, ForceMode.Force);
-      if (wheel.isGrounded) isGrounded = true;
+        if (collider.transform.childCount == 0) {
+            return;
+        }
+     
+        Transform visualWheel = collider.transform.GetChild(0);
+     
+        Vector3 position;
+        Quaternion rotation;
+        collider.GetWorldPose(out position, out rotation);
+     
+        visualWheel.transform.position = position;
+        visualWheel.transform.rotation = rotation;
     }
-  }
-
-  void Update()
-  {
-    foreach (Wheel wheel in wheels)
+     
+    private void FixedUpdate()
     {
-      wheel.SpinMesh();
+        float motor = maxMotorTorque * accelerationAxis;
+        float steering = maxSteeringAngle * turnAxis;
+        float brake = brakeAxis * maxBrakeTorque;
+     
+        foreach (AxleInfo axleInfo in axleInfos) {
+            if (axleInfo.steering) {
+                axleInfo.leftWheel.steerAngle = steering;
+                axleInfo.rightWheel.steerAngle = steering;
+            }
+            if (axleInfo.motor) {
+                axleInfo.leftWheel.motorTorque = motor;
+                axleInfo.rightWheel.motorTorque = motor;
+            }
+
+            axleInfo.leftWheel.brakeTorque = brake;
+            axleInfo.rightWheel.brakeTorque = brake;
+
+            ApplyLocalPositionToVisuals(axleInfo.leftWheel);
+            ApplyLocalPositionToVisuals(axleInfo.rightWheel);
+        }
     }
-  }
-
-  public void SetSteeringTarget(float axis)
-  {
-    targetRotation = Quaternion.AngleAxis(maxSteeringAngle * axis, Vector3.up);
-  }
-
-  public void Accelerate(float magnitude)
-  {
-    acceleration = magnitude;
-  }
-
-  public void Brake(bool active)
-  {
-    brake = active ? brakeStrength : 0f;
-  }
-
-  public void Boost(bool active)
-  {
-
-  }
-
-  public void Jump()
-  {
-    if (isGrounded)
-    {
-      rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
-    }
-  }
-
-  public void Tilt()
-  {
-
-  }
 }
